@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import random 
 import types
 import collections 
-from tqdm import tqdm
+from tqdm import tqdm 
 
 class IDMVerify:
 
@@ -266,6 +266,27 @@ class IDMVerify:
                 if idx == node:
                     left_vals.append(v)
         return max(max(left_vals), rp)     
+    
+    def optimal_r_theoretical(self, alpha, n, m):
+        '''
+        alpha: vector which contains all alpha_i
+        n: total bidder number 
+        m: all the branches number of the tree 
+        '''
+        c = collections.Counter(alpha)
+        c_sort = [(k, v) for k, v in c.items()]
+        c_sort.sort(lambda x: -x[1])
+        coefs = [x[1] for x in c_sort] + [-1 * (m + n)]
+        roots = np.roots(coefs)
+        update_roots = [1 / x for x in roots]
+        for ur in update_roots:
+            if 0 <= ur <= 1:
+                return ur 
+        raise ValueError('No Optimal Reserved Price!')
+
+    def optimal_r_experimental(self):
+        pass 
+
 
     def main(self, iterations, rp):
         # self.PlotGraph()
@@ -274,11 +295,12 @@ class IDMVerify:
         # rp = 0.6
         for _ in tqdm(range(iterations)):
             vs = self.ValGeneration('uniform', 0, 1, self.cnt - 1)
-            total_rev += self.IDMRev_RP(vs, rp)
-            # _, _, rev = self.IDM_with_rp(vs, rp)
-            # run_rev += rev 
+            # total_rev += self.IDMRev_RP(vs, rp)
+            _, _, rev = self.IDM_with_rp(vs, rp)
+            run_rev += rev 
         # return total_rev / iterations, run_rev / iterations
-        return total_rev / iterations
+        # return total_rev / iterations
+        return run_rev / iterations
     
     def test_rp(self):
         rps = [0.05 * i for i in range(1,21)]
