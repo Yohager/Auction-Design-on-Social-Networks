@@ -303,30 +303,34 @@ class IDMVerify:
         return run_rev / iterations
     
     def test_rp(self):
-        rps = [0.05 * i for i in range(1,21)]
+        rps = [0.01 * i for i in range(20,81)]
         res = []
-        iters = 5000
+        iters = 100000
         # test different optimal revenues for different rps 
         for rp in rps:
             res.append([rp, self.main(iters, rp)])
         return res 
     
 
-def plot_func(x, y0, y1, y2, y3):
+def plot_func(x, y0, y1, y2, y3, y4):
     plt.style.use('seaborn')
     fig = plt.figure(figsize=(16, 10))
     plt.plot(x, y0, color = 'yellow')
     plt.plot(x, y1, color = 'red')
     plt.plot(x, y2, color = 'blue')
     plt.plot(x, y3, color = 'green')
+    plt.plot(x, y4, color = 'purple')
     plt.xlabel('reserved price')
     plt.ylabel('revenue')
-    plt.legend(('T0', 'T1', 'T2', 'T3'))
-    plt.savefig('test2.png')
+    plt.legend(('T0', 'T1', 'T2', 'T3', 'T4'))
+    plt.savefig('test_2_8_iteration_50000.png')
     plt.show()
 
 
 if __name__ == "__main__":
+    G0 = nx.Graph()
+    G0.add_nodes_from([0,1,2,3,4,5])
+    G0.add_edges_from([(0,1), (0,2), (0,3), (0,4), (0,5)])
     G1 = nx.Graph()
     G1.add_nodes_from([0,1,2,3,4,5])
     G1.add_edges_from([(0,1), (0,2), (0,3), (0,4), (4,5)])
@@ -341,19 +345,22 @@ if __name__ == "__main__":
     G4.add_edges_from([(0,1), (0,2), (2,3), (2,4), (4,5)])
     seller_id = 0
     buyer_ids = [1,2,3,4,5]
-    IDM_test0 = IDMVerify(G1, seller_id, buyer_ids)
+    IDM_test0 = IDMVerify(G0, seller_id, buyer_ids)
     # print(IDM_test.main(1000))
     IDM_res0 = IDM_test0.test_rp()
-    IDM_test1 = IDMVerify(G4, seller_id, buyer_ids)
+    IDM_test1 = IDMVerify(G1, seller_id, buyer_ids)
     # print(IDM_test.main(1000))
     IDM_res1 = IDM_test1.test_rp()
     IDM_test2 = IDMVerify(G2, seller_id, buyer_ids)
     IDM_res2 = IDM_test2.test_rp()
     IDM_test3 = IDMVerify(G3, seller_id, buyer_ids)
     IDM_res3 = IDM_test3.test_rp()
-    plot_x = [0.05 * i for i in range(1, 21)]
+    IDM_test4 = IDMVerify(G4, seller_id, buyer_ids)
+    IDM_res4 = IDM_test4.test_rp() 
+    plot_x = [0.01 * i for i in range(20, 81)]
     plot_y0 = [x[1] for x in IDM_res0]
     plot_y1 = [x[1] for x in IDM_res1]
     plot_y2 = [x[1] for x in IDM_res2]
     plot_y3 = [x[1] for x in IDM_res3]
-    plot_func(plot_x, plot_y0, plot_y1, plot_y2, plot_y3)
+    plot_y4 = [x[1] for x in IDM_res4]
+    plot_func(plot_x, plot_y0, plot_y1, plot_y2, plot_y3, plot_y4)
