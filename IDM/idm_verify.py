@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import random 
 import types
 import collections 
-from tqdm import tqdm 
+from tqdm import tqdm
+from scipy.ndimage import gaussian_filter1d 
 
 class IDMVerify:
 
@@ -310,18 +311,28 @@ class IDMVerify:
         return res 
     
 
-def plot_func(x, y0, y1, y2, y3, y4):
+def plot_func(x, y_lists):
     plt.style.use('seaborn')
     fig = plt.figure(figsize=(16, 10))
-    plt.plot(x, y0, color = 'yellow')
-    plt.plot(x, y1, color = 'red')
-    plt.plot(x, y2, color = 'blue')
-    plt.plot(x, y3, color = 'green')
-    plt.plot(x, y4, color = 'purple')
+    colors = ['red', 'yellow', 'blue', 'green', \
+              'purple', 'orange', 'cyan', 'grey',\
+                'lightblue', 'pink', 'tan']
+    y_lists_smooth = []
+    for y in y_lists:
+        tmp = gaussian_filter1d(y, sigma = 10)
+        y_lists_smooth.append(tmp)
+    if len(colors) < len(y_lists_smooth):
+        return 'Colors not enough!'
+    n = len(y_lists_smooth)
+    legends = ['Tree-' + str(i+1) for i in range(n)]
+    selected_colors = colors[:n]
+    for y, c in zip(y_lists_smooth, selected_colors):
+        plt.plot(x, y, color = c)
     plt.xlabel('reserved price')
     plt.ylabel('revenue')
-    plt.legend(('T0', 'T1', 'T2', 'T3', 'T4'))
-    plt.savefig('test_3_1_step_0.005_iteration_100000.png')
+    # plt.legend(('T0', 'T1', 'T2', 'T3', 'T4'))
+    plt.legend(legends)
+    plt.savefig('rooted_trees_with_4_bidders_smooth.png')
     plt.show()
 
 
@@ -342,27 +353,26 @@ def trees_with_four_nodes():
     G4 = nx.Graph()
     G4.add_nodes_from(nodes)
     G4.add_edges_from([(0,1), (1,2), (2,3), (3,4)])
-    return G0, G1, G2, G3, G4
+    return list(G0, G1, G2, G3, G4)
 
 def trees_with_five_nodes():
     pass 
+    # nodes = [0, 1, 2, 3, 4, 5] 
+    # G0 = nx.Graph()
+    # G0.add_nodes_from(nodes)
+    # G0.add_edges_from([(0,1), (0,2), (0,3), (0,4), (0.5)])
+    # G1 = nx.Graph()
+
+def calc_results(Graph_list, seller_id, buyer_ids, x_vals, iters):
+    y_lists = []
+    for G in Graph_list:
+        tmp_idm = IDMVerify(G, seller_id, buyer_ids)
+        tmp_res = tmp_idm.test_rp(x_vals, iters)
+        plot_res = [x[1] for x in tmp_res]
+        y_lists.append(plot_res)
+    return y_lists
 
 if __name__ == "__main__":
-#     G0 = nx.Graph()
-#     G0.add_nodes_from([0,1,2,3,4,5])
-#     G0.add_edges_from([(0,1), (0,2), (0,3), (0,4), (0,5)])
-#     G1 = nx.Graph()
-#     G1.add_nodes_from([0,1,2,3,4,5])
-#     G1.add_edges_from([(0,1), (0,2), (0,3), (0,4), (4,5)])
-#     G2 = nx.Graph()
-#     G2.add_nodes_from([0,1,2,3,4,5])
-#     G2.add_edges_from([(0,1), (0,2), (0,3), (2,4), (3,5)])
-#     G3 = nx.Graph()
-#     G3.add_nodes_from([0,1,2,3,4,5])
-#     G3.add_edges_from([(0,1), (0,2), (0,3), (3,4), (4,5)])
-#     G4 = nx.Graph()
-#     G4.add_nodes_from([0,1,2,3,4,5])
-#     G4.add_edges_from([(0,1), (0,2), (2,3), (2,4), (4,5)])
     G0, G1, G2, G3, G4 = trees_with_four_nodes()
     seller_id = 0
     buyer_ids = [1,2,3,4]
