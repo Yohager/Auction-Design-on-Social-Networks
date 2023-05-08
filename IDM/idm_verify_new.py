@@ -164,6 +164,35 @@ class IDMVerify:
         rev = sum(winner.values())
         rev += sum(rewarded_bidders.values())
         return winner, rewarded_bidders, rev 
+    
+    def Calculate_Opt_rp(self):
+        '''
+        求解最优保留价逻辑
+        sum_i=1^m r^{-alpha_i} = n + m 
+        考虑只设置一个最优的保留价
+        计算每个分支的数量: alpha1, alpha2, ..., alpham 
+        n -> 市场中所有竞拍者的数量
+        m -> m个分支的数量
+        '''
+        dominant_set = self._ConstructDS()
+        seller_dominant = dominant_set(self.seller)
+        alphas = []
+        n = len(self.buyers)
+        m = len(seller_dominant)
+        for buyer in seller_dominant:
+            alphas.append(dominant_set(buyer))
+        # define the equation that needs to be solved 
+        def func(x):
+            y = 0 
+            for alpha in range(alphas):
+                y += x ** (-alpha)
+            return y - n - m 
+        # use the solve function from scipy 
+        root = scipy.optimal.fsolve(func, 0)
+        if not root:
+            raise ValueError("No Proper Reserved Price!")
+        return root 
+
 
     def IDM_with_rp(self, vals, rp):
         '''
@@ -219,7 +248,6 @@ class IDMVerify:
     3. 按照分支上的虚拟估值进行处理 同时使用truthful的框架来保证出价与传播的IC性质
     '''
 
-<<<<<<< HEAD
     def IDM_with_classical_virtual_value(self, vals):
         '''
         这里的逻辑是将每个竞拍者的估值映射到经典的虚拟估值空间上
@@ -230,18 +258,33 @@ class IDMVerify:
         '''
         def affine_func(x):
             return 2 * x - 1
+        def reverse_affine_func(fx):
+            return (fx + 1) / 2 
+            
         virtual_vals = [affine_func(v) for v in vals] # 所有竞拍者虚拟估值的结果
         # 基于虚拟估值找到社会福利最大化的分配
         # 找到虚拟估值最大的竞拍者
         # 如果最大的虚拟估值都是大于0的直接不分配 
-
-
+        if not virtual_vals:
+            raise ValueError("No Input Virtual Vals!")
+        if virtual_vals[0] < 0:
+            return None, None, 0
+        # there exists some bidder whose virtual_valuation is higher than zero 
+        # run IDM under the virtual value space and return the corresponding payment  
+        winner, rewarded_bidders, _ = self.IDM(virtual_vals)
+        # reflect the virtual payment into the real payment under initial value space 
+        for bidder in winner:
+            winner[bidder] = reverse_affine_func(winner[bidder])
+        for r_bidder in rewarded_bidders:
+            rewarded_bidders[r_bidder] = reverse_affine_func(rewarded_bidders[r_bidder])
+        rev = sum(winner.values()) = sum(rewarded_bidders.values())
+        return winner, rewarded_bidders, rev 
 
     def IDM_with_branch_virtual_value(self, distribution, vals):
         '''
         每一个支配的分支定义新的虚拟估值 价格歧视落在不同分支上
         '''
-    
+        pass 
 
     
 =======
