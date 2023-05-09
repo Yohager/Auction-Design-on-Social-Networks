@@ -3,9 +3,11 @@ import networkx as nx
 import matplotlib.pyplot as plt 
 import random 
 import types
+import math 
 import collections 
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter1d 
+import scipy 
 
 class IDMVerify:
 
@@ -193,7 +195,7 @@ class IDMVerify:
             raise ValueError("No Proper Reserved Price!")
         return root 
 
-
+    # IDM带保留价结果
     def IDM_with_rp(self, vals, rp):
         '''
         run IDM revenue result with reserved price 
@@ -243,11 +245,14 @@ class IDMVerify:
 
     '''
     目标是对比三种不同的保留价模式下的收益情况分析
+    给定一张确定的图 -> 唯一的保留价就是确定的 -> 按分支确定的保留价也是确定的
     1. 将所有竞拍者的保留价映射到经典的虚拟估值函数上进行
     2. 按照分支给出最优的保留价然后执行机制
     3. 按照分支上的虚拟估值进行处理 同时使用truthful的框架来保证出价与传播的IC性质
-    '''
+    4. 一般IDM执行后的收益情况
 
+    '''
+    # IDM带经典Myerson虚拟估值场景
     def IDM_with_classical_virtual_value(self, vals):
         '''
         这里的逻辑是将每个竞拍者的估值映射到经典的虚拟估值空间上
@@ -277,18 +282,51 @@ class IDMVerify:
             winner[bidder] = reverse_affine_func(winner[bidder])
         for r_bidder in rewarded_bidders:
             rewarded_bidders[r_bidder] = reverse_affine_func(rewarded_bidders[r_bidder])
-        rev = sum(winner.values()) = sum(rewarded_bidders.values())
-        return winner, rewarded_bidders, rev 
+        rev = sum(winner.values()) + sum(rewarded_bidders.values())
+        return winner, rewarded_bidders, rev
 
-    def IDM_with_branch_virtual_value(self, distribution, vals):
+    # IDM带每个分支最优保留价结果
+    def IDM_with_branch_reserved_price(self, vals):
+        branch_rp = dict()
+        dominate_set = self._ConstructDS()
+        keys = dominate_set[self.seller]
+        for ky in keys:
+            d_ky = len(dominate_set[ky])
+            rp_ky = 1 / math.pow((1+d_ky), 1/d_ky)
+            branch_rp[ky] = rp_ky # 每个分支给一个保留价
+        # 也可以写成对于每个竞拍者进行对应的价格歧视
+        # 理论上这里的branch_rp只会用到一个
+        # locate the highest bid
+        d = {k:v for k, v in zip(self.buyers, vals)} 
+        m = list(d.items())
+        m.sort(key = lambda x : -x[1])
+        if not m:
+            raise ValueError('no buyer exists!')
+        highest_bidder = m[0][0]
+        used_rp = None 
+        for ky in keys:
+            if highest_bidder in dominate_set[ky]:
+                used_rp = branch_rp[ky]
+                break 
+        if not used_rp:
+            raise ValueError("No Reserved Price!")
+        return self.IDM_with_rp(vals, used_rp)
+
+    def IDM_with_branch_virtual_value(self, vals):
         '''
         每一个支配的分支定义新的虚拟估值 价格歧视落在不同分支上
         '''
-        pass 
+        def new_affine_func(x, k):
+            return x - ((1 - x ** k) / k * (x ** (k-1)))
+
+        virtual_vals = dict()
+        d = {k:v for k, v in zip(self.buyers, vals)}
+        dominant_set = self._ConstructDS()
+        first_level_critial_bidders = dominant_set[self.seller]
+        
+
 
     
-=======
->>>>>>> refs/remotes/origin/main
     def IDMRev(self, vals):
         '''
         calculate revenue of IDM directly: Rev = SW*(N\d1)
@@ -358,9 +396,6 @@ class IDMVerify:
             if 0 <= ur <= 1:
                 return ur 
         raise ValueError('No Optimal Reserved Price!')
-
-    def optimal_r_experimental(self):
-        pass 
 
 
     def main(self, iterations, rp):
