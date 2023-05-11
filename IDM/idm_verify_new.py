@@ -7,7 +7,7 @@ import math
 import collections 
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter1d 
-import scipy 
+from scipy import optimize
 
 class IDMVerify:
 
@@ -49,7 +49,20 @@ class IDMVerify:
                 for part in connected_parts:
                     if principal not in part:
                         dominating_dict[node] = dominating_dict[node] | part
+        dominating_dict[principal] = set()
+        for node in agent_set: 
+            flag = True 
+            for agent in agent_set:
+                if node in dominating_dict[agent]:
+                    flag = False 
+                    break 
+            if flag:
+                dominating_dict[principal].add(node)
+        print(dominating_dict)
         return dominating_dict
+
+    # def _Construct_DS(self) -> dict:
+
 
     def _AllocationAndPayment(self, idx, next_idx, bids, idx_dominate, next_idx_dominate):
         '''
@@ -135,6 +148,7 @@ class IDMVerify:
         highest_bidder = m[0][0]
         # find all the nodes dominating the highest bidder and rank them a sequence
         dominating_dict = self._ConstructDS()
+        seller_dominates = dominating_dict.pop(0)
         dominate_bidders = set()
         for k, v in dominating_dict.items():
             if highest_bidder in v:
@@ -177,23 +191,26 @@ class IDMVerify:
         m -> m个分支的数量
         '''
         dominant_set = self._ConstructDS()
-        seller_dominant = dominant_set(self.seller)
+        print(dominant_set)
+        seller_dominant = dominant_set[self.seller]
         alphas = []
         n = len(self.buyers)
         m = len(seller_dominant)
         for buyer in seller_dominant:
-            alphas.append(dominant_set(buyer))
-        # define the equation that needs to be solved 
+            alphas.append(len(dominant_set[buyer]) + 1)
+        # define the equation that needs to be solved
+        # print(alphas) 
         def func(x):
             y = 0 
-            for alpha in range(alphas):
-                y += x ** (-alpha)
+            for alpha in alphas:
+                y += (1/x) ** alpha
             return y - n - m 
         # use the solve function from scipy 
-        root = scipy.optimal.fsolve(func, 0)
+        print(n, m, alphas)
+        root = optimize.root(func, 0.1)
         if not root:
             raise ValueError("No Proper Reserved Price!")
-        return root 
+        return root['x'][0]
 
     # IDM带保留价结果
     def IDM_with_rp(self, vals, rp):
@@ -211,6 +228,7 @@ class IDMVerify:
             return None, None, 0 # the highest bid is smaller than the reserved price 
         # find all the nodes dominating the highest bidder and rank them a sequence
         dominating_dict = self._ConstructDS()
+        seller_dominates = dominating_dict.pop(0)
         dominate_bidders = set()
         for k, v in dominating_dict.items():
             if highest_bidder in v:
@@ -270,14 +288,17 @@ class IDMVerify:
         # 基于虚拟估值找到社会福利最大化的分配
         # 找到虚拟估值最大的竞拍者
         # 如果最大的虚拟估值都是大于0的直接不分配 
+        # print(virtual_vals)
+        # virtual_profile = [[buyer_id, bid] for buyer_id, bid in zip(self.buyers, virtual_vals)]
         if not virtual_vals:
             raise ValueError("No Input Virtual Vals!")
-        if virtual_vals[0] < 0:
+        if max(virtual_vals) < 0:
             return None, None, 0
         # there exists some bidder whose virtual_valuation is higher than zero 
         # run IDM under the virtual value space and return the corresponding payment  
         winner, rewarded_bidders, _ = self.IDM(virtual_vals)
         # reflect the virtual payment into the real payment under initial value space 
+        print('here', winner, rewarded_bidders)
         for bidder in winner:
             winner[bidder] = reverse_affine_func(winner[bidder])
         for r_bidder in rewarded_bidders:
@@ -324,7 +345,6 @@ class IDMVerify:
         dominant_set = self._ConstructDS()
         first_level_critial_bidders = dominant_set[self.seller]
         
-
 
     
     def IDMRev(self, vals):
@@ -497,29 +517,53 @@ def calc_results(Graph_list, seller_id, buyer_ids, x_vals, iters):
     return y_lists
 
 if __name__ == "__main__":
-    seller_id = 0
+    # seller_id = 0
     # buyer_ids = [1,2,3]
-    buyer_ids = [1,2,3,4]
+    # buyer_ids = [1,2,3,4]
     # edges_sets = [
     #     [(0,1), (1,2), (2,3)],
     #     [(0,1), (1,2), (1,3)],
     #     [(0,1), (0,2), (1,3)], 
     #     [(0,1), (0,2), (0,3)]
     # ]
-    edges_sets = [
-        [(0,1), (1,2), (2,3), (3,4)],
-        [(0,1), (1,2), (2,3), (2,4)],
-        [(0,1), (1,2), (1,3), (2,4)],
-        [(0,1), (1,2), (1,3), (1,4)],
-        [(0,1), (0,2), (1,3), (1,4)],
-        [(0,1), (0,2), (1,3), (2,4)],
-        [(0,1), (0,2), (1,3), (3,4)],
-        [(0,1), (0,2), (0,3), (1,4)],
-        [(0,1), (0,2), (0,3), (0,4)]
-    ]
-    iters = 10000 
-    # x_ranges = [0.01 * i for i in range(40, 81)]
-    x_ranges = [0.002 * i for i in range(200, 401)]
-    G_list = trees_with_four_bidders(9, edges_sets)
-    y_res = calc_results(G_list, seller_id, buyer_ids, x_ranges, iters)
-    plot_func(x_ranges, y_res)
+    # edges_sets = [
+    #     [(0,1), (1,2), (2,3), (3,4)],
+    #     [(0,1), (1,2), (2,3), (2,4)],
+    #     [(0,1), (1,2), (1,3), (2,4)],
+    #     [(0,1), (1,2), (1,3), (1,4)],
+    #     [(0,1), (0,2), (1,3), (1,4)],
+    #     [(0,1), (0,2), (1,3), (2,4)],
+    #     [(0,1), (0,2), (1,3), (3,4)],
+    #     [(0,1), (0,2), (0,3), (1,4)],
+    #     [(0,1), (0,2), (0,3), (0,4)]
+    # ]
+    # iters = 10000 
+    # # x_ranges = [0.01 * i for i in range(40, 81)]
+    # x_ranges = [0.002 * i for i in range(200, 401)]
+    # G_list = trees_with_four_bidders(9, edges_sets)
+    # y_res = calc_results(G_list, seller_id, buyer_ids, x_ranges, iters)
+    # plot_func(x_ranges, y_res)
+    '''
+    compare revenue under different graphic structured market 
+    '''
+    # G1 = nx.karate_club_graph()
+    G1 = nx.Graph()
+    G1.add_nodes_from([0,1,2,3,4])
+    G1.add_edges_from([(0,1), (1,2), (0,3), (3,4)])
+    print(G1.nodes())
+    nx.draw(G1, with_labels=True)
+    plt.show()
+    seller_id = 0 
+    bidder_number = len(G1.nodes())
+    buyer_ids = [i for i in range(1, bidder_number)]
+    test_idm = IDMVerify(G1, seller_id, buyer_ids)
+    print(test_idm.Calculate_Opt_rp())
+    vals = test_idm.ValGeneration('uniform',0, 1, bidder_number - 1)
+    winner, rewarded_bidders, rev = test_idm.IDM(vals)
+    opt_rp = test_idm.Calculate_Opt_rp()
+    new_winner, new_rewarded_bidders, new_rev = test_idm.IDM_with_rp(vals, opt_rp)
+    winner2, rewarded_bidders2, rev2 = test_idm.IDM_with_classical_virtual_value(vals)
+    print(winner, rewarded_bidders, rev)
+    print(new_winner, new_rewarded_bidders, new_rev)
+    print(winner2, rewarded_bidders2, rev2)
+
